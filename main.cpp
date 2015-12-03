@@ -90,7 +90,6 @@ class OS {
 
 	HardDrive *hd;
 	int FAT [256];
-	vector<vector< int >> fileBlock;
 	map<string, int> files; //corresponding filename and fileID
 	static int fileID;
 	
@@ -103,7 +102,15 @@ public:
 	}
 
 	void read(string nomFichier, int position, int nombreCaracteres, string &tampLecture) {
-
+		int index = files[nomFichier];
+		string output = "";
+		while (index != 0)
+		{
+			hd.ReadBlock(position, tampLecture);
+			output += tampLecture;
+			index = FAT[index];
+		}
+		tampLecture = output;
 	}
 
 	void write(string nomFichier, int position, int nombreCaracteres, string tampLecture) {
