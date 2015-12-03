@@ -20,6 +20,12 @@ private:
 
 public:
 
+	/**
+	 * Read all memory into string, then put 
+	 * right block of memory into tampLecture
+	 * @param numeroBlock position of the bloc to read
+	 * @param tampLecture string to contain the block value
+	 */
 	void ReadBlock(int numeroBlock, string &tampLecture) {
 		ifstream file(DISK_FILENAME);
 		string memory = "";
@@ -44,6 +50,14 @@ public:
 		file.close();
 	}
 
+	/**
+	 * read all memory blocks until given block position, 
+	 * then write to disk content from tampEcriture, then
+	 * continue reading the rest of the memory. After that,
+	 * write all memory to disk.
+	 * @param numeroBlock  position of the block to write
+	 * @param tampEcriture content to write in block
+	 */
 	void WriteBlock(int numeroBlock, string tampEcriture) {
 		ofstream file(DISK_FILENAME);
 		ifstream getFile(DISK_FILENAME);
@@ -76,23 +90,27 @@ class OS {
 
 	HardDrive *hd;
 	int FAT [256];
-	vector< vector< int > > fileBlock;
+	vector<vector< int >> fileBlock;
 	map<string, int> files; //corresponding filename and fileID
+	static int fileID;
 	
 public:
 	OS() { hd = new HardDrive(); }
 	~OS() { delete hd; }
 
+	void addFile(string filename) {
+		files.insert(std::pair<string, int>(filename, fileID++));
+	}
+
 	void read(string nomFichier, int position, int nombreCaracteres, string &tampLecture) {
-		
-	}
-
-	void write(String nomFichier, int position, int nombreCaracteres, String tampLecture) {
-		ofstream file(nomFichier);
 
 	}
 
-	void deleteEOF(String nomFichier, int position) {
+	void write(string nomFichier, int position, int nombreCaracteres, string tampLecture) {
+
+	}
+
+	void deleteEOF(string nomFichier, int position) {
 
 	}
 
