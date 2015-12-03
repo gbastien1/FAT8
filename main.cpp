@@ -2,6 +2,8 @@
 #include <string>
 #include <fstream>
 #include <vector>
+#include <map>
+#include <math.h>
 using namespace std;
 
 #define BLOCK_SIZE 64
@@ -36,7 +38,7 @@ public:
 			file >> temp;
 			memory += temp;
 		}
-		memory += FillWithWhiteSpace(BLOCK_SIZE - memory.length);
+		memory += FillWithWhiteSpace(BLOCK_SIZE - memory.length());
 
 		for (int i=0; i < memory.length(); i++) {
 			if (i > BLOCK_SIZE * numeroBlock) {
@@ -89,7 +91,7 @@ public:
 class OS {
 
 	HardDrive *hd;
-	int FAT [256];
+	int FAT [BLOCK_COUNT];
 	map<string, int> files; //corresponding filename and fileID
 	static int fileID;
 	
@@ -106,7 +108,7 @@ public:
 		string output = "";
 		while (index != 0)
 		{
-			hd.ReadBlock(position, tampLecture);
+			hd->ReadBlock(position, tampLecture);
 			output += tampLecture;
 			index = FAT[index];
 		}
@@ -114,7 +116,22 @@ public:
 	}
 
 	void write(string nomFichier, int position, int nombreCaracteres, string tampLecture) {
-
+		int index = files[nomFichier];
+		if (index == 0) {
+			files[nomFichier] = fileID;
+			fileID++;
+		}
+		int numBlocks = floor(tampLecture.length() / BLOCK_SIZE);
+		for (int i = 0; i < numBlocks; i++) {
+			string temp = tampLecture.substr(i, BLOCK_SIZE);
+			hd->WriteBlock(index, temp);
+			index = FAT[index];
+		}
+		//trouver position a ecrire dans hard disk (si -1, message d'erreur)
+		//écrire (writeBlock) à la position retournée par la fonction ^
+		//Ajouter no bloc à FAT à bonne position***
+			//à indice du fileID, ajouter no du prochain bloc, puis
+			//à no du prochain bloc dans FAT, ajouter no du prochain prochain bloc...
 	}
 
 	void deleteEOF(string nomFichier, int position) {
@@ -127,6 +144,8 @@ public:
 };
 
 int main(void) {
-	
+	OS *os = new OS;
+	os->write("yo.txt", 2, 2, "");
+
 	return 0;
 }
