@@ -13,7 +13,8 @@ class OS {
 	HardDrive *hd;
 	int FAT [256];
 	vector< vector< int > > fileBlock;
-
+	map<string, int> files; //corresponding filename and fileID
+	
 public:
 	OS() { hd = new HardDrive(); }
 	~OS() { delete hd; }
