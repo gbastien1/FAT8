@@ -2,6 +2,8 @@
 #include <string>
 #include <fstream>
 #include <vector>
+#include <map>
+#include <time.h>
 using namespace std;
 
 #define BLOCK_SIZE 64
@@ -36,7 +38,7 @@ public:
 			file >> temp;
 			memory += temp;
 		}
-		memory += FillWithWhiteSpace(BLOCK_SIZE - memory.length);
+		memory += FillWithWhiteSpace(BLOCK_SIZE - memory.length());
 
 		for (int i=0; i < memory.length(); i++) {
 			if (i > BLOCK_SIZE * numeroBlock) {
@@ -111,7 +113,7 @@ public:
 	}
 
 	void deleteEOF(string nomFichier, int position) {
-
+	
 	}
 
 	void printHD() {
@@ -121,5 +123,39 @@ public:
 
 int main(void) {
 	
+	OS PatentedAwesomeTerminalOS;
+	int RFile, ROperation;
+	srand(time(NULL));
+	string theFile, tampon = "";
+
+	for (int i = 0; i< 100; i++)
+	{
+		RFile = rand() % 3 + 97;
+		ROperation = rand() %3 + 1;
+
+		theFile = RFile + ".txt";
+		int nbrChar = rand() % 256 + 1;
+		
+		switch (ROperation)
+		{
+			case 1: //READ
+				PatentedAwesomeTerminalOS.read(theFile, rand() % 256, nbrChar, tampon);
+				break;
+			case 2: //WRITE
+				for (int j=0;j<nbrChar;j++) tampon.push_back((char)RFile);
+				PatentedAwesomeTerminalOS.write(theFile, rand() % 256, nbrChar, tampon);
+				break;
+			case 3: //DELETEEOF
+				PatentedAwesomeTerminalOS.deleteEOF(theFile, rand() % 256);
+				break;
+		}
+	
+
+	}
+
+
+
+
+
 	return 0;
 }
