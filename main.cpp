@@ -3,7 +3,9 @@
 #include <fstream>
 #include <vector>
 #include <map>
+#include <time.h>
 #include <math.h>
+
 using namespace std;
 
 #define BLOCK_SIZE 64
@@ -86,6 +88,23 @@ public:
 		file.close();
 		getFile.close();
 	}
+
+	/*  
+	 * Get the first available empty memory space.
+	 */
+	int GetFirstAvailableMemorySpace() {
+		ifstream file(DISK_FILENAME);
+
+		for (int i=1; 1; i++) {
+			if (i == BLOCK_COUNT - 1) return -1;
+			if (file.eof()) return i;
+			string out;
+			file >> out;
+			if (out[0] == ' ') return i;
+		}
+
+		file.close();
+	}
 };
 
 class OS {
@@ -144,7 +163,16 @@ public:
 	}
 
 	void deleteEOF(string nomFichier, int position) {
+		int startBlock = floor(position / BLOCK_SIZE); //The block to start with
+		int index = files[nomFichier];
 
+		for (int i=0; i < startBlock; i++) {
+			index = FAT[index];
+		}
+
+		while (FAT[index] != 0) {
+
+		}
 	}
 
 	void printHD() {
@@ -153,8 +181,37 @@ public:
 };
 
 int main(void) {
-	OS *os = new OS;
-	os->write("yo.txt", 2, 2, "");
+
+	
+	OS PatentedAwesomeTerminalOS;
+	int RFile, ROperation;
+	srand(time(NULL));
+	string theFile, tampon = "";
+
+	for (int i = 0; i< 100; i++)
+	{
+		RFile = rand() % 3 + 97;
+		ROperation = rand() %3 + 1;
+
+		theFile = RFile + ".txt";
+		int nbrChar = rand() % 256 + 1;
+		
+		switch (ROperation)
+		{
+			case 1: //READ
+				PatentedAwesomeTerminalOS.read(theFile, rand() % 256, nbrChar, tampon);
+				break;
+			case 2: //WRITE
+				for (int j=0;j<nbrChar;j++) tampon.push_back((char)RFile);
+				PatentedAwesomeTerminalOS.write(theFile, rand() % 256, nbrChar, tampon);
+				break;
+			case 3: //DELETEEOF
+				PatentedAwesomeTerminalOS.deleteEOF(theFile, rand() % 256);
+				break;
+		}
+	
+
+	}
 
 	return 0;
 }
