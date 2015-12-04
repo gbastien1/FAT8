@@ -116,13 +116,22 @@ public:
 	}
 
 	void write(string nomFichier, int position, int nombreCaracteres, string tampLecture) {
+		//PRENDRE EN COMPTE POSITION (POSITION / 64 = NUMERO DE BLOC OÙ COMMENCER À ÉCRIRE)
 		int index = files[nomFichier];
 		if (index == 0) {
 			files[nomFichier] = fileID;
 			fileID++;
+			//TROUVER PROCHAINE CASE LIBRE
 		}
+		else {
+			//LIRE DANS FAT POUR AVOIR DERNIER BLOC ( = 0 )
+		}
+		//LIRE LA FAT POUR ACCEDER À LA CASE QUI CONTIENT 0 À LA FIN, POUR COMMENCER A PARTIR DE LA DERNIERE CASE
+		//D'UN FICHIER DEJA EXISTANT, SI NON EXISTANT, SIMPLEMENT COMMENCER À LA PROCHAINE CASE LIBRE.
 		int numBlocks = floor(tampLecture.length() / BLOCK_SIZE);
 		for (int i = 0; i < numBlocks; i++) {
+			int block = 0; //FONCTION À ANTOINE QUI PREND LE PROCHAIN BLOC LIBRE
+			int sizeOfBlock = 0; //FONCTION À ANTOINE QUI REGARDE COMBIEN DE CHAR ON PEUT AJOUTER DANS LE BLOC
 			string temp = tampLecture.substr(i, BLOCK_SIZE);
 			hd->WriteBlock(index, temp);
 			index = FAT[index];
