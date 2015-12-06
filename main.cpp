@@ -105,23 +105,52 @@ public:
 
 		file.close();
 	}
+
+	/**
+	* Returns the space left in block in characters count
+	* @param  block the block to get available space from
+	* @return       (int)space available if block found, -1 otherwise
+	*/
+	int spaceLeftInBlock(int block) {
+		ifstream file(DISK_FILENAME);
+		string line = "";
+		for (int i = 0; i <= block; i++) {
+			file >> line;
+			if (i == block) {
+				return BLOCK_SIZE - line.length();
+			}
+		}
+		return -1;
+	}
 };
 
 class OS {
 
 	HardDrive *hd;
 	int FAT [BLOCK_COUNT];
-	map<string, int> files; //corresponding filename and fileID
-	static int fileID;
+	map<string, int> files; //corresponding filename and starting block in FAT
 	
 public:
 	OS() { hd = new HardDrive(); }
 	~OS() { delete hd; }
 
+	/**
+	* adds a new file manually to the files dictionnary
+	* @param filename the filename of the added file, to which is mapped
+	* its starting block in FAT
+	*/
 	void addFile(string filename) {
-		files.insert(std::pair<string, int>(filename, fileID++));
+		files.insert(std::pair<string, int>(filename, hd->GetFirstAvailableMemorySpace()));
 	}
 
+	/**
+	* Read from nomFichier nombreCaracteres characters from position,
+	* and writes it to tampLecture that's passed as reference
+	* @param nomFichier       The filename to read from
+	* @param position         starting position of reading
+	* @param nombreCaracteres number of chars to read
+	* @param tampLecture      the buffer where to write the read chars
+	*/
 	void read(string nomFichier, int position, int nombreCaracteres, string &tampLecture) {
 		int index = files[nomFichier];
 		string output = "";
@@ -134,32 +163,106 @@ public:
 		tampLecture = output;
 	}
 
+
+	/**
+	* Writes the content of tampLecture to a given
+	* file from position for nombreCaracteres
+	* @param nomFichier       The filename where to append the content
+	* @param position         The character position where to start writing
+	* @param nombreCaracteres The number of characters to write (aka tampLecture.length())
+	* @param tampLecture      The content to write to file
+	*/
 	void write(string nomFichier, int position, int nombreCaracteres, string tampLecture) {
-		//PRENDRE EN COMPTE POSITION (POSITION / 64 = NUMERO DE BLOC OÙ COMMENCER À ÉCRIRE)
+		int block;
+		string overwritten = "";
+		//get index of file, if file does not exist, 
+		//index = 0, so give it a correct index
 		int index = files[nomFichier];
-		if (index == 0) {
-			files[nomFichier] = fileID;
-			fileID++;
-			//TROUVER PROCHAINE CASE LIBRE
+
+		//if file does not exist in dictionnary
+		if (index == 0) { 
+			block = hd->GetFirstAvailableMemorySpace(); //returns a block between 0 and 255 empty in FAT
+			if (block == -1) {
+				cout << "No memory available in hard drive!";
+				return;
+			}
+			files[nomFichier] = block;
 		}
-		else {
-			//LIRE DANS FAT POUR AVOIR DERNIER BLOC ( = 0 )
+		//if file exists in dictionnary
+		else { 
+			//get starting block from where to write
+			int blockNumber = floor(position / BLOCK_SIZE);
+			//then get to this block by going through FAT
+			for (int i = 0; i < blockNumber; i++) {
+				blockNumber = FAT[blockNumber];
+			}
+			block = blockNumber;
 		}
-		//LIRE LA FAT POUR ACCEDER À LA CASE QUI CONTIENT 0 À LA FIN, POUR COMMENCER A PARTIR DE LA DERNIERE CASE
-		//D'UN FICHIER DEJA EXISTANT, SI NON EXISTANT, SIMPLEMENT COMMENCER À LA PROCHAINE CASE LIBRE.
-		int numBlocks = floor(tampLecture.length() / BLOCK_SIZE);
-		for (int i = 0; i < numBlocks; i++) {
-			int block = 0; //FONCTION À ANTOINE QUI PREND LE PROCHAIN BLOC LIBRE
-			int sizeOfBlock = 0; //FONCTION À ANTOINE QUI REGARDE COMBIEN DE CHAR ON PEUT AJOUTER DANS LE BLOC
-			string temp = tampLecture.substr(i, BLOCK_SIZE);
-			hd->WriteBlock(index, temp);
-			index = FAT[index];
+
+		//calculates the char where to start writing into block (from 0 to 63)
+		int offset = position < BLOCK_SIZE ? position % BLOCK_SIZE : position;
+
+		//calculates the number of characters that have to be written in first block ( < 64 )
+		int nbCharsInFirstBlock = BLOCK_SIZE - offset;
+
+		//calculates the number of blocks to write (number of iterations in FAT)
+		int blocksToWrite = 1 + ceil((nombreCaracteres - nbCharsInFirstBlock) / BLOCK_SIZE);
+
+		//gets the first char block to write to incomplete first block
+		string temp = tampLecture.substr(position, nbCharsInFirstBlock);
+		//then change the position to which to write into file
+		int newpos = position + nbCharsInFirstBlock;
+
+		//for each block in FAT that have to be written
+		for (int i = 1; i < blocksToWrite; i++) {
+			string buffer = "";
+			//read the block to keep the content that is being overwritten
+			hd->ReadBlock(block, buffer);
+			overwritten += buffer;
+
+			//call hard drive's writeBlock method
+			hd->WriteBlock(block, temp);
+			
+
+			//get the next block to which to write
+			int prevBlock = block;
+			block = FAT[block];
+			//if it is the end of file, get a new available block and give it to FAT
+			if (block == 0) {
+				int b = hd->GetFirstAvailableMemorySpace();
+				FAT[block] = b;
+				FAT[b] = 0;
+				block = b;
+			}
+			//get next 64 chars to write to file from tampLecture
+			temp = tampLecture.substr(newpos, BLOCK_SIZE);
+			//update the position from where to write
+			newpos += BLOCK_SIZE;
 		}
-		//trouver position a ecrire dans hard disk (si -1, message d'erreur)
-		//écrire (writeBlock) à la position retournée par la fonction ^
-		//Ajouter no bloc à FAT à bonne position***
-			//à indice du fileID, ajouter no du prochain bloc, puis
-			//à no du prochain bloc dans FAT, ajouter no du prochain prochain bloc...
+
+		//Append to file the content that was overwritten by write
+		block = files[nomFichier];
+		while (block != 0) {
+			block = FAT[block]; //get ending block
+		}
+
+		//get the number of characters that can be written in last block
+		int nbCharsToWrite = hd->spaceLeftInBlock(block); //create function (TODO ANTOINE)
+		if (nbCharsToWrite == -1)  {
+			cout << "error in write(), appending not working!"; return;
+		}
+		int pos = 0;
+		//until everything was not appended, writeBlock
+		while (pos < overwritten.length()) {
+			//get chars to write to block corresponding to length that can ben written
+			string buffer = overwritten.substr(pos, nbCharsToWrite);
+			hd->WriteBlock(block, buffer);
+
+			//get the number of characters that can be written to next empty block
+			nbCharsToWrite = pos + BLOCK_SIZE < overwritten.length() ? BLOCK_SIZE : overwritten.length() - pos;
+			//then update position. The while condition will check if the word is finished being written
+			pos += nbCharsToWrite;
+		}
 	}
 
 	void deleteEOF(string nomFichier, int position) {
