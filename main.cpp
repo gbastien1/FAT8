@@ -10,7 +10,7 @@ using namespace std;
 
 #define BLOCK_SIZE 64
 #define BLOCK_COUNT 256
-#define DISK_FILENAME "HD.DH"
+#define DISK_FILENAME "HD.DH.txt"
 
 class HardDrive {
 private:
@@ -63,7 +63,6 @@ public:
 	 * @param tampEcriture content to write in block
 	 */
 	void WriteBlock(int numeroBlock, string tampEcriture) {
-		ofstream file(DISK_FILENAME);
 		ifstream getFile(DISK_FILENAME);
 		string disk[BLOCK_COUNT];
 
@@ -81,8 +80,9 @@ public:
 			}
 		}
 
+		ofstream file(DISK_FILENAME);
 		for (int i=0; i < BLOCK_COUNT; i++) {
-			file << disk[i];
+			file << disk[i] << endl;
 		}
 
 		file.close();
@@ -96,11 +96,12 @@ public:
 		ifstream file(DISK_FILENAME);
 
 		for (int i=1; 1; i++) {
-			if (i == BLOCK_COUNT - 1) return -1;
+			if (i == BLOCK_COUNT) return -1;
 			if (file.eof()) return i;
 			string out;
 			file >> out;
-			if (out[0] == ' ') return i;
+			char test = (char)out[0];
+			if (test == '\0') return i;
 		}
 
 		file.close();
@@ -131,7 +132,12 @@ class OS {
 	map<string, int> files; //corresponding filename and starting block in FAT
 	
 public:
-	OS() { hd = new HardDrive(); }
+	OS() { 
+		hd = new HardDrive(); 
+		for (int i = 0; i < BLOCK_COUNT; i++){
+			FAT[i] = 0;
+		}
+	}
 	~OS() { delete hd; }
 
 	/**
@@ -183,7 +189,7 @@ public:
 		if (index == 0) { 
 			block = hd->GetFirstAvailableMemorySpace(); //returns a block between 0 and 255 empty in FAT
 			if (block == -1) {
-				cout << "No memory available in hard drive!";
+				cout << "No memory available in hard drive!" << endl;
 				return;
 			}
 			files[nomFichier] = block;
@@ -200,7 +206,7 @@ public:
 		}
 
 		//calculates the char where to start writing into block (from 0 to 63)
-		int offset = position < BLOCK_SIZE ? position % BLOCK_SIZE : position;
+		int offset = position < BLOCK_SIZE ? position : position % BLOCK_SIZE;
 
 		//calculates the number of characters that have to be written in first block ( < 64 )
 		int nbCharsInFirstBlock = BLOCK_SIZE - offset;
@@ -209,12 +215,13 @@ public:
 		int blocksToWrite = 1 + ceil((nombreCaracteres - nbCharsInFirstBlock) / BLOCK_SIZE);
 
 		//gets the first char block to write to incomplete first block
-		string temp = tampLecture.substr(position, nbCharsInFirstBlock);
+		string temp = tampLecture.substr(0, nbCharsInFirstBlock);
 		//then change the position to which to write into file
-		int newpos = position + nbCharsInFirstBlock;
+		int newpos = 0;
+		newpos = newpos + nbCharsInFirstBlock;
 
 		//for each block in FAT that have to be written
-		for (int i = 1; i < blocksToWrite; i++) {
+		for (int i = 0; i < blocksToWrite; i++) {
 			string buffer = "";
 			//read the block to keep the content that is being overwritten
 			hd->ReadBlock(block, buffer);
@@ -234,8 +241,10 @@ public:
 				FAT[b] = 0;
 				block = b;
 			}
+			int size = tampLecture.length();
+			if (size - newpos < 0) break;
 			//get next 64 chars to write to file from tampLecture
-			temp = tampLecture.substr(newpos, BLOCK_SIZE);
+			temp = tampLecture.substr(newpos, newpos + BLOCK_SIZE >= size ? size - newpos : BLOCK_SIZE);
 			//update the position from where to write
 			newpos += BLOCK_SIZE;
 		}
@@ -268,18 +277,38 @@ public:
 	void deleteEOF(string nomFichier, int position) {
 		int startBlock = floor(position / BLOCK_SIZE); //The block to start with
 		int index = files[nomFichier];
+		int pos = position % BLOCK_SIZE;
 
 		for (int i=0; i < startBlock; i++) {
 			index = FAT[index];
 		}
 
-		while (FAT[index] != 0) {
-
+		bool first = true;
+		while (FAT[index] != 0) { //For every block
+			int nextBlockIndex = FAT[index];
+			if (first) {
+				first = false;
+				string lecture = "";
+				hd->ReadBlock(index, lecture);
+				hd->WriteBlock(index, lecture.substr(pos, BLOCK_SIZE));
+			}
+			else {
+				FAT[index] = 0;
+				hd->WriteBlock(index, "");
+			}
+			index = nextBlockIndex;
 		}
 	}
 
 	void printHD() {
-
+		cout << "HardDrive" << endl;
+		for (int i = 0; i < BLOCK_COUNT; i++) {
+			string lecture = "";
+			hd->ReadBlock(i, lecture);
+			if (lecture == "") cout << " ";
+			else cout << (lecture.length() < BLOCK_SIZE ? lecture[0] : (char)((int)lecture[0] - 32));
+		}
+		cout << endl;
 	}
 };
 
@@ -290,13 +319,17 @@ int main(void) {
 	int RFile, ROperation;
 	srand(time(NULL));
 	string theFile, tampon = "";
+	ofstream file(DISK_FILENAME);
+	file.close();
 
-	for (int i = 0; i< 100; i++)
+	int count = 0;
+	for (int i = 0; i< 2000; i++)
 	{
 		RFile = rand() % 3 + 97;
 		ROperation = rand() %3 + 1;
 
-		theFile = RFile + ".txt";
+		theFile.push_back((char)RFile);
+		theFile.append(".txt");
 		int nbrChar = rand() % 256 + 1;
 		
 		switch (ROperation)
@@ -312,8 +345,14 @@ int main(void) {
 				PatentedAwesomeTerminalOS.deleteEOF(theFile, rand() % 256);
 				break;
 		}
-	
 
+		theFile = "";
+		
+		if (count == 100) {
+			PatentedAwesomeTerminalOS.printHD();
+			count = 0;
+		}
+		else count++;
 	}
 
 	return 0;
